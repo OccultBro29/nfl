@@ -1,0 +1,1376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NFL Skill Position Rosters</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --navy: #0b5d4b;
+    --red: #d50032;
+    --bg: #f5efe3;
+    --surface: #f5efe3;
+    --border: rgba(11,93,75,0.18);
+    --text: #1a1a2e;
+    --text-muted: #6b7280;
+    --text-light: #9ca3af;
+    --accent: #0b5d4b;
+    --number-color: #3b214a;
+    /* Position pill colors */
+    --qb-bg: #fef3c7; --qb-color: #92400e;
+    --rb-bg: #dcfce7; --rb-color: #14532d;
+    --fb-bg: #cffafe; --fb-color: #164e63;
+    --wr-bg: #e0e7ff; --wr-color: #3730a3;
+    --te-bg: #f3e8ff; --te-color: #6b21a8;
+  }
+
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* ── Header ── */
+  header { background: #0b5d4b; color: white; padding: 0; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+  .header-inner { max-width: 1200px; margin: 0 auto; padding: 21px 16px; display: flex; align-items: center; gap: 16px; }
+
+  /* ── Page ── */
+  .page-container { max-width: 1200px; margin: 0 auto; padding: 24px 16px 48px; }
+  .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; position: relative; }
+  .page-title { font-size: 28px; font-weight: 800; color: var(--navy); letter-spacing: -0.5px; }
+  .season-badge { font-size: 14px; color: #3b214a; font-weight: 500; margin-top: 3px; }
+
+  /* ── Date Navigator ── */
+  .date-nav {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center;
+    border: 1.5px solid var(--border); border-radius: 8px;
+    background: #f5efe3; box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+    overflow: visible;
+  }
+  .date-nav-btn { background: none; border: none; padding: 10px 14px; cursor: pointer; color: var(--navy); display: flex; align-items: center; justify-content: center; transition: background 0.15s; flex-shrink: 0; }
+  .date-nav-btn:hover { background: #ece6da; }
+  .date-nav-btn:active { background: #ddd6f0; }
+  .date-nav-label {
+    padding: 10px 18px; font-size: 15px; font-weight: 700; color: #3b214a;
+    border-left: 1.5px solid var(--border); border-right: 1.5px solid var(--border);
+    width: 280px; text-align: center; white-space: nowrap;
+    user-select: none; transition: background 0.15s; cursor: pointer;
+  }
+  .date-nav-label:hover { background: #ece6da; }
+
+  /* ── Controls ── */
+  .controls-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+  .filter-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .status-bar { font-size: 12px; color: var(--text-muted); text-align: right; }
+  .status-bar.error { color: #dc2626; }
+
+  .refresh-btn { display: inline-flex; align-items: center; gap: 8px; background: var(--navy); color: white; border: none; padding: 9px 18px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.15s, transform 0.1s; letter-spacing: 0.2px; }
+  .refresh-btn:hover { background: #084d3e; }
+  .refresh-btn:active { transform: scale(0.97); }
+  .refresh-btn.loading { opacity: 0.6; pointer-events: none; }
+  .refresh-btn.loading svg { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Multi-select filter */
+  .multi-select { position: relative; }
+  .multi-select-btn { font-size: 13px; padding: 7px 12px; border: 1px solid var(--border); border-radius: 6px; background: #f5efe3; color: var(--text); cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .multi-select-btn:hover { background: #ece6da; }
+  .multi-select-arrow { font-size: 10px; opacity: 0.6; }
+  .multi-select-dropdown { display: none; position: absolute; top: calc(100% + 4px); left: 0; background: #f5efe3; border: 1.5px solid var(--border); border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,0.12); z-index: 500; min-width: 160px; max-height: 320px; overflow-y: auto; padding: 6px 0; }
+  .multi-select-dropdown.open { display: block; }
+  .multi-select-option { display: flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 13px; cursor: pointer; color: var(--text); user-select: none; }
+  .multi-select-option:hover { background: #ece6da; }
+  .multi-select-option input[type="checkbox"] { accent-color: var(--navy); width: 13px; height: 13px; flex-shrink: 0; cursor: pointer; }
+  .multi-select-option.all-option { border-bottom: 1px solid var(--border); margin-bottom: 4px; padding-bottom: 8px; font-weight: 600; }
+
+  /* Pos filter select */
+  #pos-filter { font-size: 13px; padding: 7px 12px; border: 1px solid var(--border); border-radius: 6px; background: #f5efe3; color: var(--text); cursor: pointer; font-family: inherit; }
+
+  /* ── Note bar ── */
+  .note-bar { font-size: 11px; color: var(--text-muted); margin-bottom: 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .note-pos { display: inline-flex; align-items: center; gap: 5px; }
+  .note-pill { font-size: 9px; font-weight: 800; padding: 1px 5px; border-radius: 3px; letter-spacing: 0.3px; }
+  .np-qb { background: var(--qb-bg); color: var(--qb-color); }
+  .np-rb { background: var(--rb-bg); color: var(--rb-color); }
+  .np-fb { background: var(--fb-bg); color: var(--fb-color); }
+  .np-wr { background: var(--wr-bg); color: var(--wr-color); }
+  .np-te { background: var(--te-bg); color: var(--te-color); }
+
+  /* ── Games grid ── */
+  .games-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(520px, 1fr)); gap: 20px; }
+  @media (max-width: 580px) { .games-grid { grid-template-columns: 1fr; } }
+
+  /* ── Game card ── */
+  .game-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); transition: box-shadow 0.2s; }
+  .game-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+
+  .game-header {
+    padding: 12px 16px;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    background: var(--navy);
+    color: white;
+    position: relative;
+  }
+  .game-header::after {
+    content: '';
+    position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(to right, var(--away-accent, rgba(255,255,255,0.3)) 0%, var(--away-accent, rgba(255,255,255,0.3)) 50%, var(--home-accent, rgba(255,255,255,0.15)) 50%, var(--home-accent, rgba(255,255,255,0.15)) 100%);
+  }
+
+  .matchup { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; }
+  .team-logo-header { width: 28px; height: 28px; object-fit: contain; }
+  .team-abbr-label { display: flex; align-items: center; gap: 5px; }
+  .team-record { font-size: 11px; font-weight: 400; opacity: 0.65; }
+  .vs-sep { font-size: 11px; opacity: 0.6; font-weight: 400; }
+  .game-meta { text-align: right; font-size: 12px; opacity: 0.85; }
+  .game-time { font-weight: 700; font-size: 13px; }
+  .game-venue { opacity: 0.7; margin-top: 1px; font-size: 11px; }
+  .game-status-pill { display: inline-block; background: rgba(255,255,255,0.2); border-radius: 10px; padding: 1px 8px; font-size: 11px; font-weight: 600; margin-top: 3px; }
+  .game-status-pill.live { background: var(--red); }
+  .game-status-pill.final { background: rgba(255,255,255,0.15); }
+
+  /* ── Roster columns ── */
+  .rosters-row { display: grid; grid-template-columns: 1fr 1fr; }
+  .roster-col { padding: 12px 14px; min-width: 0; }
+  .roster-col + .roster-col { border-left: 1px solid var(--border); }
+
+  .col-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-light); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .col-label img { width: 18px; height: 18px; object-fit: contain; }
+
+  /* ── Position group ── */
+  .pos-group { margin-top: 6px; }
+  .pos-group:first-child { margin-top: 0; }
+  .pos-group-header { display: flex; align-items: center; gap: 6px; padding: 4px 0 3px; margin-bottom: 2px; }
+  .pos-group-line { flex: 1; height: 1px; background: var(--border); }
+  .pos-group-name { font-size: 9px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
+
+  /* ── Player row ── */
+  .player-row { display: flex; align-items: center; gap: 4px; padding: 4px 0; border-bottom: 1px solid #f3f4f6; font-size: 12.5px; line-height: 1.4; cursor: default; }
+  .player-row:last-child { border-bottom: none; }
+
+  .pos-pill { font-size: 8.5px; font-weight: 800; padding: 1px 5px; border-radius: 3px; letter-spacing: 0.4px; flex-shrink: 0; text-transform: uppercase; }
+  .pos-pill.QB { background: var(--qb-bg); color: var(--qb-color); }
+  .pos-pill.RB, .pos-pill.HB { background: var(--rb-bg); color: var(--rb-color); }
+  .pos-pill.FB { background: var(--fb-bg); color: var(--fb-color); }
+  .pos-pill.WR { background: var(--wr-bg); color: var(--wr-color); }
+  .pos-pill.TE { background: var(--te-bg); color: var(--te-color); }
+
+  .jersey-num { color: var(--number-color); font-size: 12px; font-weight: 800; min-width: 22px; text-align: right; flex-shrink: 0; font-variant-numeric: tabular-nums; letter-spacing: -0.5px; }
+
+  .player-name { color: var(--text); font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; cursor: pointer; }
+  .player-name:hover { color: var(--navy); text-decoration: underline; }
+
+  /* Inline stat fracs */
+  .player-stats-inline { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; justify-content: center; }
+  .stat-frac { display: inline-flex; flex-direction: column; align-items: center; line-height: 1.1; font-size: 9px; color: var(--text-muted); font-variant-numeric: tabular-nums; flex-shrink: 0; white-space: nowrap; }
+  .stat-frac .numer { font-weight: 700; color: var(--text); border-bottom: 1px solid var(--text-muted); width: 100%; text-align: center; padding-bottom: 1px; }
+  .stat-frac .denom { color: var(--text-light); padding-top: 1px; }
+  .stat-frac .label { color: var(--text-light); font-size: 7.5px; letter-spacing: 0.3px; text-transform: uppercase; padding-top: 1px; }
+
+  /* ── Tooltips (MLB-style) ── */
+  .player-tooltip, .stat-tooltip {
+    display: none;
+    position: fixed;
+    background: #3b214a;
+    color: white;
+    border-radius: 7px;
+    padding: 5px 9px;
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+    z-index: 9999;
+    pointer-events: none;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+    gap: 7px;
+    align-items: center;
+  }
+  .player-tooltip.visible, .stat-tooltip.visible { display: flex; }
+  .tooltip-dob  { opacity: 0.85; }
+  .tooltip-sep  { opacity: 0.4; font-size: 12px; }
+  .tooltip-frac { display: inline-flex; flex-direction: column; align-items: center; line-height: 1.15; font-size: 10px; }
+  .tooltip-frac .tn { font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.45); width: 100%; text-align: center; padding-bottom: 1px; }
+  .tooltip-frac .td { opacity: 0.75; padding-top: 1px; }
+
+  /* ── Game footer ── */
+  /* ── Game footer ── */
+  .game-footer { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 10px 14px; border-top: 1px solid var(--border); background: #f4ebdd; }
+  .game-footer a { font-size: 12px; font-weight: 600; color: var(--navy); text-decoration: none; padding: 5px 12px; border: 1px solid var(--border); border-radius: 5px; transition: background 0.1s; }
+  .game-footer a:hover { background: #ece6da; }
+  .game-footer a.primary { background: #3b214a; color: white; border-color: #3b214a; }
+  .game-footer a.primary:hover { background: #2e1a3a; }
+
+  /* ── Skeleton ── */
+  .skeleton { background: linear-gradient(90deg, #ede7db 25%, #f5efe3 50%, #ede7db 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 4px; }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+  .skeleton-card { background: #f5efe3; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+
+  /* ── Empty state ── */
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+  .empty-state h3 { font-size: 20px; margin-bottom: 8px; color: var(--text); }
+  .empty-state p { font-size: 14px; line-height: 1.6; max-width: 420px; margin: 0 auto; }
+  .empty-state code { background: #ede7db; padding: 3px 8px; border-radius: 4px; font-size: 12px; }
+
+  /* ── Roster loading placeholder ── */
+  .tbd-roster { color: var(--text-light); font-style: italic; font-size: 12px; padding: 8px 0; text-align: center; }
+
+  /* ── Diagnostics ── */
+  .diag-btn { font-size: 12px; padding: 6px 12px; border: 1px dashed var(--border); border-radius: 5px; background: none; color: var(--text-muted); cursor: pointer; font-family: inherit; }
+  .diag-btn:hover { background: #ece6da; }
+  #diag-panel { display: none; position: fixed; bottom: 20px; right: 20px; width: 520px; max-height: 70vh; overflow-y: auto; background: #1a1a2e; color: #e2e8f0; border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,0.4); z-index: 9998; font-family: monospace; font-size: 11px; }
+  #diag-panel.open { display: block; }
+  #diag-header { padding: 10px 14px; background: rgba(255,255,255,0.07); display: flex; justify-content: space-between; align-items: center; border-radius: 10px 10px 0 0; }
+  #diag-header span { font-weight: 700; font-size: 12px; }
+  #diag-close { background: none; border: none; color: #9ca3af; cursor: pointer; font-size: 16px; }
+  #diag-body { padding: 14px; white-space: pre-wrap; line-height: 1.5; }
+  .diag-ok   { color: #4ade80; }
+  .diag-err  { color: #f87171; }
+  .diag-warn { color: #fbbf24; }
+  .diag-key  { color: #93c5fd; }
+
+  /* ── Date nav label ── */
+  .date-nav-label::after { content: ' ▾'; font-size: 11px; opacity: 0.5; }
+
+  /* ── Calendar dropdown ── */
+  /* ── Week/Season Selector Dropdown ── */
+  #nfl-week-dropdown { display:none; position:fixed; background:#f5efe3; border:1.5px solid var(--border); border-radius:10px; box-shadow:0 6px 24px rgba(0,0,0,0.13); z-index:1000; width:320px; padding:12px; }
+  #nfl-week-dropdown.open { display:block; }
+  .nfl-year-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .nfl-year-label { font-size:16px; font-weight:800; color:#3b214a; }
+  .nfl-year-btn { background:none; border:1px solid var(--border); cursor:pointer; color:var(--navy); padding:4px 10px; border-radius:5px; font-family:inherit; font-size:12px; font-weight:600; }
+  .nfl-year-btn:hover { background:#ece6da; }
+  .nfl-type-tabs { display:flex; gap:3px; margin-bottom:12px; background:#ece6da; border-radius:7px; padding:3px; }
+  .nfl-type-tab { flex:1; text-align:center; padding:6px 4px; border-radius:5px; font-size:11px; font-weight:600; cursor:pointer; color:var(--text-muted); border:none; background:none; font-family:inherit; transition:background 0.1s; }
+  .nfl-type-tab.active { background:white; color:#3b214a; box-shadow:0 1px 3px rgba(0,0,0,0.1); }
+  .nfl-type-tab:hover:not(.active) { background:rgba(255,255,255,0.5); }
+  .nfl-week-grid { display:grid; gap:4px; }
+  .nfl-week-cell { text-align:center; padding:7px 4px; border-radius:5px; cursor:pointer; font-size:11px; font-weight:600; color:var(--text); background:none; border:none; font-family:inherit; transition:background 0.1s; }
+  .nfl-week-cell:hover { background:#ece6da; }
+  .nfl-week-cell.selected { background:#3b214a; color:white; }
+
+  /* ── Player name link ── */
+  .player-name-link { color:var(--text); font-weight:500; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12.5px; cursor:pointer; text-decoration:none; }
+  .player-name-link:hover { color:var(--navy); text-decoration:underline; }
+
+  /* ── Stat frac label row ── */
+  .stat-frac-labels { display:flex; gap:6px; font-size:7.5px; color:var(--text-light); text-transform:uppercase; letter-spacing:0.3px; justify-content:flex-end; padding-right:2px; }
+
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+  </div>
+</header>
+
+<!-- Week/Season selector dropdown (populated by renderNFLDropdown) -->
+<div id="nfl-week-dropdown"></div>
+
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Skill Position Rosters</h1>
+      <div class="season-badge" id="date-subtitle">QB · RB · FB · WR · TE</div>
+    </div>
+    <div class="date-nav">
+      <button class="date-nav-btn" onclick="changeWeek(-1)" title="Previous day">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="date-nav-label" id="date-display" onclick="toggleNFLDropdown(event)"></div>
+      <button class="date-nav-btn" onclick="changeWeek(1)" title="Next day">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+    <div class="controls">
+      <button class="refresh-btn" id="refresh-btn" onclick="loadGames()">
+        <svg id="refresh-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+          <path d="M21 3v5h-5"/>
+          <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+          <path d="M8 16H3v5"/>
+        </svg>
+        Load Games
+      </button>
+      <button class="diag-btn" onclick="runDiagnostics()">🔬 Test Stats API</button>
+    </div>
+  </div>
+
+  <div class="note-bar">
+    <span>Stats shown as <strong>Season / Career</strong> &nbsp;|&nbsp; Hover fractions for extra breakdowns</span>
+    <span style="color:#cbd5e1">|</span>
+    <span class="note-pos"><span class="note-pill np-qb">Passing</span> PassYds · TD · RTG</span>
+    <span class="note-pos"><span class="note-pill np-rb">Rushing</span> RushYds · TD · Att</span>
+    <span class="note-pos"><span class="note-pill np-wr">Receiving</span> RecYds · TD · Tgt</span>
+  </div>
+
+  <div class="controls-row">
+    <div class="filter-bar">
+      <div class="multi-select" id="team-filter-wrap">
+        <button class="multi-select-btn" id="team-filter-btn" onclick="toggleTeamDropdown(event)">
+          All Teams <span class="multi-select-arrow">▾</span>
+        </button>
+        <div class="multi-select-dropdown" id="team-filter-dropdown"></div>
+      </div>
+      <select id="pos-filter" onchange="filterGames()" style="font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:white;color:var(--text);cursor:pointer;font-family:inherit;">
+        <option value="ALL">All Positions</option>
+        <option value="QB">QB Only</option>
+        <option value="RB">RB / FB Only</option>
+        <option value="WR">WR Only</option>
+        <option value="TE">TE Only</option>
+      </select>
+    </div>
+    <div class="status-bar" id="status-bar">Click <strong>Load Games</strong> to begin.</div>
+  </div>
+
+  <div class="games-grid" id="games-grid">
+    <div style="grid-column:1/-1;padding:48px 20px;text-align:center;color:var(--text-light);font-size:15px;">
+      Click <strong>Load Games</strong> to load the current week's matchups.
+    </div>
+  </div>
+</div>
+
+<!-- Diagnostics Panel -->
+<div id="diag-panel">
+  <div id="diag-header">
+    <span>🔬 Stats API Diagnostics</span>
+    <button id="diag-close" onclick="document.getElementById('diag-panel').classList.remove('open')">✕</button>
+  </div>
+  <div id="diag-body">Click "Test Stats API" to run…</div>
+</div>
+
+<!-- Tooltips (MLB-style: simple fixed divs, one per tooltip type) -->
+<div class="player-tooltip" id="player-tooltip"></div>
+<div class="stat-tooltip"   id="pass-tooltip"></div>
+<div class="stat-tooltip"   id="rush-rec-tooltip"></div>
+
+<script>
+// ── Constants ─────────────────────────────────────────────
+const ESPN      = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl';
+const ESPN_CORE = 'https://sports.core.api.espn.com/v2/sports/football/leagues/nfl';
+
+const POS_CONFIG = {
+  QB: { display:'QB', group:'QB', limit:3, pillClass:'QB' },
+  RB: { display:'RB', group:'RB', limit:5, pillClass:'RB' },
+  HB: { display:'RB', group:'RB', limit:5, pillClass:'HB' },
+  FB: { display:'FB', group:'FB', limit:2, pillClass:'FB' },
+  WR: { display:'WR', group:'WR', limit:8, pillClass:'WR' },
+  TE: { display:'TE', group:'TE', limit:4, pillClass:'TE' },
+};
+
+// Stat category sections — mirrors ESPN's team stats page layout
+const STAT_SECTIONS = [
+  {
+    key: 'passing',   label: 'Passing',   color: 'var(--qb-color)', limit: 3,
+    sortStat: 'passingYards',
+    defaultPos: ['QB'],
+    fracTip: 'pass',
+    fracs: function(s,c) { return [
+      ['passingYards',      'PassYds', 'pass'],
+      ['passingTouchdowns', 'TD',      'pass'],
+      ['QBRating',          'RTG',     'pass'],
+    ]; }
+  },
+  {
+    key: 'rushing',   label: 'Rushing',   color: 'var(--rb-color)', limit: 5,
+    sortStat: 'rushingYards',
+    defaultPos: ['RB','HB','FB','QB','WR','TE'],
+    fracs: function(s,c) { return [
+      ['rushingYards',       'RushYds', 'rush'],
+      ['rushingTouchdowns',  'TD',      'rush'],
+      ['rushingAttempts',    'Att',     'rush'],
+    ]; }
+  },
+  {
+    key: 'receiving', label: 'Receiving', color: 'var(--wr-color)', limit: 6,
+    sortStat: 'receivingYards',
+    defaultPos: ['WR','TE','RB','HB','FB','QB'],
+    fracs: function(s,c) { return [
+      ['receivingYards',       'RecYds', 'rec'],
+      ['receivingTouchdowns',  'TD',     'rec'],
+      ['receivingTargets',     'Tgt',    'rec'],
+    ]; }
+  },
+];
+const GROUP_ORDER  = ['QB','RB','FB','WR','TE'];
+const GROUP_LABELS = { QB:'Quarterbacks', RB:'Running Backs', FB:'Fullbacks', WR:'Wide Receivers', TE:'Tight Ends' };
+const GROUP_COLORS = { QB:'var(--qb-color)', RB:'var(--rb-color)', FB:'var(--fb-color)', WR:'var(--wr-color)', TE:'var(--te-color)' };
+
+// ── Global fetch semaphore ───────────────────────────────
+// Caps concurrent API calls to prevent proxy rate-limiting.
+// All ESPN stats fetches run through throttledFetch instead of fetchWithFallback directly.
+function createSemaphore(max) {
+  let count = 0;
+  const queue = [];
+  return {
+    acquire: function() {
+      if (count < max) { count++; return Promise.resolve(); }
+      return new Promise(function(resolve) { queue.push(resolve); });
+    },
+    release: function() {
+      count--;
+      if (queue.length) { var next = queue.shift(); next(); count++; }
+    }
+  };
+}
+const fetchSem = createSemaphore(5); // max 5 concurrent ESPN API requests
+
+async function throttledFetch(url) {
+  await fetchSem.acquire();
+  try {
+    return await withTimeout(fetchWithFallback(url));
+  } finally {
+    fetchSem.release();
+  }
+}
+
+// ── Date state (MLB pattern) ──────────────────────────────
+// ── NFL Season / Week navigation state ───────────────────────────────────────
+let nflSeasonYear = null;   // e.g. 2026 — set from scoreboard on first load
+let nflSeasonType = 2;      // 1=Preseason  2=Regular  3=Postseason
+let nflWeek       = null;   // current week number — set from scoreboard
+
+let allGames      = [];
+let rosterCache   = {};
+let statsCache    = {};
+let workingProxy  = null;
+let _loadingGames = false;
+
+const SEASON_TYPE_LABELS = { 1:'Preseason', 2:'Regular Season', 3:'Postseason' };
+const PLAYOFF_WEEK_NAMES = { 1:'Wild Card', 2:'Divisional', 3:'Conf. Championship', 4:'Pro Bowl', 5:'Super Bowl' };
+const MAX_WEEKS          = { 1:4, 2:18, 3:5 };
+
+function navMainLabel() {
+  if (!nflSeasonYear || !nflWeek) return 'Loading…';
+  if (nflSeasonType === 3) return nflSeasonYear + ' · ' + (PLAYOFF_WEEK_NAMES[nflWeek] || 'Week ' + nflWeek);
+  if (nflSeasonType === 1) return nflSeasonYear + ' Preseason · Week ' + nflWeek;
+  return nflSeasonYear + ' · Week ' + nflWeek;
+}
+
+function updateNavDisplay() {
+  var el = document.getElementById('date-display');
+  if (el) el.textContent = navMainLabel();
+  var badge = document.getElementById('date-subtitle');
+  if (badge) badge.textContent = (nflSeasonYear ? SEASON_TYPE_LABELS[nflSeasonType] : 'NFL');
+}
+
+function changeWeek(delta) {
+  if (!nflWeek) return;
+  var maxW = MAX_WEEKS[nflSeasonType] || 18;
+  var newW = nflWeek + delta;
+  if (newW < 1 || newW > maxW) return;
+  nflWeek = newW;
+  rosterCache = {}; statsCache = {};
+  updateNavDisplay();
+  loadGames();
+}
+
+// ── Week/Season dropdown ──────────────────────────────────────────────────────
+function toggleNFLDropdown(e) {
+  e.stopPropagation();
+  var drop = document.getElementById('nfl-week-dropdown');
+  if (drop.classList.contains('open')) { closeNFLDropdown(); return; }
+  var label = document.getElementById('date-display');
+  var rect  = label.getBoundingClientRect();
+  drop.style.top  = (rect.bottom + 8) + 'px';
+  drop.style.left = Math.max(8, Math.round(rect.left + rect.width / 2 - 160)) + 'px';
+  renderNFLDropdown();
+  drop.classList.add('open');
+}
+
+function closeNFLDropdown() {
+  var drop = document.getElementById('nfl-week-dropdown');
+  if (drop) drop.classList.remove('open');
+}
+
+document.addEventListener('click', function(e) {
+  var drop = document.getElementById('nfl-week-dropdown');
+  if (drop && drop.classList.contains('open') && !drop.contains(e.target)) closeNFLDropdown();
+});
+
+// _dropYear tracks the year shown in the open dropdown (may differ from nflSeasonYear while browsing)
+var _dropYear = null;
+var _dropType = null;
+
+function renderNFLDropdown() {
+  var drop = document.getElementById('nfl-week-dropdown');
+  if (!drop) return;
+  if (_dropYear === null) _dropYear = nflSeasonYear || new Date().getFullYear();
+  if (_dropType === null) _dropType = nflSeasonType;
+
+  // Year row
+  var yr = _dropYear;
+  var yearRow = '<div class="nfl-year-row">' +
+    '<button class="nfl-year-btn" onclick="dropShiftYear(-1,event)">← ' + (yr-1) + '</button>' +
+    '<span class="nfl-year-label">' + yr + '</span>' +
+    '<button class="nfl-year-btn" onclick="dropShiftYear(1,event)">' + (yr+1) + ' →</button>' +
+    '</div>';
+
+  // Season type tabs
+  var typeTabs = '<div class="nfl-type-tabs">' +
+    [1,2,3].map(function(t) {
+      return '<button class="nfl-type-tab' + (_dropType===t?' active':'') +
+        '" onclick="dropSetType(' + t + ',event)">' + SEASON_TYPE_LABELS[t] + '</button>';
+    }).join('') + '</div>';
+
+  // Week cells
+  var maxW = MAX_WEEKS[_dropType] || 18;
+  var cols = _dropType === 3 ? 2 : (_dropType === 1 ? 4 : 6);
+  var cells = '';
+  for (var w = 1; w <= maxW; w++) {
+    var lbl = _dropType === 3 ? (PLAYOFF_WEEK_NAMES[w] || 'Wk '+w) : 'Wk ' + w;
+    var isSel = (yr === nflSeasonYear && _dropType === nflSeasonType && w === nflWeek);
+    cells += '<button class="nfl-week-cell' + (isSel?' selected':'') +
+      '" onclick="dropSelectWeek(' + w + ',event)">' + lbl + '</button>';
+  }
+  var weekGrid = '<div class="nfl-week-grid" style="grid-template-columns:repeat('+cols+',1fr)">' + cells + '</div>';
+
+  drop.innerHTML = yearRow + typeTabs + weekGrid;
+}
+
+function dropShiftYear(delta, e) {
+  e.stopPropagation();
+  _dropYear = (_dropYear || new Date().getFullYear()) + delta;
+  renderNFLDropdown();
+}
+
+function dropSetType(type, e) {
+  e.stopPropagation();
+  _dropType = type;
+  renderNFLDropdown();
+}
+
+function dropSelectWeek(week, e) {
+  e.stopPropagation();
+  nflSeasonYear = _dropYear;
+  nflSeasonType = _dropType;
+  nflWeek       = week;
+  rosterCache = {}; statsCache = {};
+  updateNavDisplay();
+  closeNFLDropdown();
+  _dropYear = null; _dropType = null; // reset for next open
+  loadGames();
+}
+
+updateNavDisplay();
+
+// ── Proxy-aware fetch ─────────────────────────────────────
+function isProxyError(d) {
+  if (!d || typeof d !== 'object') return false;
+  return (d.success === false && d.docs) || (d.status && d.error && d.docs);
+}
+
+function withTimeout(promise, ms) {
+  ms = ms || 6000;
+  return Promise.race([
+    promise,
+    new Promise(function(_, reject) { setTimeout(function() { reject(new Error('Timeout ' + ms + 'ms')); }, ms); })
+  ]);
+}
+
+// Global concurrency limiter — keeps ESPN/proxy requests from overwhelming allorigins
+var _slots = 8;
+var _queue = [];
+function _release() {
+  _slots++; // always restore slot first — run() will consume it if queue has items
+  if (_queue.length) {
+    var next = _queue.shift();
+    next(); // run() does _slots--, net change = 0
+  }
+}
+function limited(fn) {
+  return new Promise(function(resolve, reject) {
+    function run() {
+      _slots--;
+      Promise.resolve().then(fn).then(
+        function(v) { _release(); resolve(v); },
+        function(e) { _release(); reject(e); }
+      );
+    }
+    if (_slots > 0) { run(); } else { _queue.push(run); }
+  });
+}
+
+async function fetchWithFallback(url) {
+  const attempts = [
+    async function() {
+      const r = await fetch(url, { headers:{ Accept:'application/json' } });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const d = await r.json();
+      if (isProxyError(d)) throw new Error('API error');
+      return d;
+    },
+    async function() {
+      const r = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(url));
+      const j = await r.json();
+      if (!j.contents) throw new Error('no contents');
+      const d = JSON.parse(j.contents);
+      if (isProxyError(d)) throw new Error('allorigins upstream error');
+      return d;
+    },
+    async function() {
+      const r = await fetch('https://corsproxy.io/?' + encodeURIComponent(url));
+      if (!r.ok) throw new Error('corsproxy HTTP ' + r.status);
+      const d = await r.json();
+      if (isProxyError(d)) throw new Error('corsproxy blocked');
+      return d;
+    },
+    async function() {
+      const r = await fetch('https://thingproxy.freeboard.io/fetch/' + url);
+      if (!r.ok) throw new Error('thingproxy HTTP ' + r.status);
+      const d = await r.json();
+      if (isProxyError(d)) throw new Error('thingproxy error');
+      return d;
+    },
+  ];
+  if (workingProxy !== null) {
+    try {
+      const d = await attempts[workingProxy]();
+      if (d) return d;
+    } catch(e) {
+      console.warn('Proxy ' + workingProxy + ' failed (' + e.message + '), resetting');
+      workingProxy = null;
+    }
+  }
+  for (let i = 0; i < attempts.length; i++) {
+    try {
+      const d = await attempts[i]();
+      if (d) { workingProxy = i; return d; }
+    } catch(e) { console.warn('Proxy ' + i + ' failed:', e.message); }
+  }
+  throw new Error('All fetch methods failed.');
+}
+
+// ── Stat parsing & aggregation ────────────────────────────
+function parseStatCategories(cats) {
+  const result = {};
+  for (const cat of (cats || [])) {
+    for (const stat of (cat.stats || [])) {
+      const v = stat.displayValue !== undefined ? stat.displayValue : stat.value;
+      if (v !== undefined) result[stat.name] = v;
+    }
+  }
+  return result;
+}
+
+const ADDITIVE_STATS = [
+  'completions','passingAttempts','passingYards','passingTouchdowns','interceptions',
+  'rushingAttempts','rushingYards','rushingTouchdowns',
+  'receivingTargets','receptions','receivingYards','receivingTouchdowns',
+  'gamesPlayed','fumbles','fumblesLost',
+];
+
+function aggregateInto(totals, parsed) {
+  for (const stat of ADDITIVE_STATS) {
+    const val = parseFloat(String(parsed[stat] || '').replace(/,/g,''));
+    if (!isNaN(val) && val > 0) totals[stat] = (totals[stat] || 0) + val;
+  }
+}
+
+function computedAverages(totals) {
+  if (!totals || !Object.keys(totals).length) return null;
+  const comp = totals.completions       || 0;
+  const pAtt = totals.passingAttempts   || 0;
+  const pYds = totals.passingYards      || 0;
+  const pTds = totals.passingTouchdowns || 0;
+  const ints = totals.interceptions     || 0;
+  const rAtt = totals.rushingAttempts   || 0;
+  const rYds = totals.rushingYards      || 0;
+  const rec  = totals.receptions        || 0;
+  const recY = totals.receivingYards    || 0;
+  if (pAtt > 0) {
+    totals.completionPct       = ((comp/pAtt)*100).toFixed(1);
+    totals.yardsPerPassAttempt = (pYds/pAtt).toFixed(1);
+    const clamp = function(v) { return Math.max(0, Math.min(v, 2.375)); };
+    totals.QBRating = (((clamp((comp/pAtt-0.3)*5)+clamp((pYds/pAtt-3)*0.25)+clamp((pTds/pAtt)*20)+clamp(2.375-(ints/pAtt)*25))/6)*100).toFixed(1);
+  }
+  if (rAtt > 0) totals.yardsPerRushAttempt = (rYds/rAtt).toFixed(1);
+  if (rec  > 0) totals.yardsPerReception   = (recY/rec).toFixed(1);
+  const out = {};
+  for (const k of Object.keys(totals)) {
+    const n = Number(totals[k]);
+    out[k] = (!isNaN(n) && Number.isInteger(n)) ? n.toLocaleString() : String(totals[k]);
+  }
+  return out;
+}
+
+// ── Player stats — season + career (MLB pattern) ──────────
+async function fetchNFLPlayerStats(playerId, expYears) {
+  if (statsCache[playerId]) return statsCache[playerId];
+  // Use the season year from the scoreboard (not calendar year) so we always
+  // show the CURRENT season — even if it's Week 1 with 0 stats, not last year.
+  var yr = nflSeasonYear || new Date().getFullYear();
+
+  // Season: fetch the current NFL season using the actual season type from the scoreboard.
+  let season = {};
+  try {
+    var seasonTypeToUse = nflSeasonType || 2;
+    var sd = await limited(function() { return withTimeout(fetchWithFallback(
+      ESPN_CORE + '/seasons/' + yr + '/types/' + seasonTypeToUse + '/athletes/' + playerId + '/statistics/0'
+    )); });
+    if (sd && !sd.error && sd.splits && sd.splits.categories) {
+      season = parseStatCategories(sd.splits.categories);
+    }
+  } catch(e) { /* season stays {} — will display as 0s */ }
+
+  // ── Career stats ──────────────────────────────────────────────────────────
+  // Strategy 1: common/v3/athletes/{id}/stats — the same endpoint that powers
+  // https://www.espn.com/nfl/player/stats/_/id/{id}/type/nfl/seasontype/2
+  // Returns both season + career in a single API call.
+  var career = null;
+  try {
+    var cv3 = await limited(function() { return withTimeout(fetchWithFallback(
+      'https://site.api.espn.com/apis/common/v3/sports/football/nfl/athletes/' + playerId + '/stats'
+    )); });
+
+    if (cv3 && cv3.categories && cv3.categories.length) {
+      var careerObj = {}, seasonObj = {};
+
+      cv3.categories.forEach(function(cat) {
+        // Format A: labels/names + totals (career) + seasonTotals arrays
+        if (cat.names && Array.isArray(cat.totals)) {
+          cat.names.forEach(function(nm, i) {
+            if (nm && cat.totals[i] !== undefined) careerObj[nm] = cat.totals[i];
+            if (nm && cat.seasonTotals && cat.seasonTotals[i] !== undefined)
+              seasonObj[nm] = cat.seasonTotals[i];
+          });
+        }
+        // Format B: stats array (season) + careerStats array
+        if (Array.isArray(cat.stats)) {
+          cat.stats.forEach(function(s) {
+            if (s.name && s.displayValue !== undefined) seasonObj[s.name] = s.displayValue;
+          });
+        }
+        if (Array.isArray(cat.careerStats)) {
+          cat.careerStats.forEach(function(s) {
+            if (s.name && s.displayValue !== undefined) careerObj[s.name] = s.displayValue;
+          });
+        }
+      });
+
+      // If common v3 gave us season stats too, prefer them
+      if (!season || Object.keys(season).length === 0) season = seasonObj;
+
+      // Convert career object to display-formatted values
+      if (Object.keys(careerObj).length > 0) {
+        career = {};
+        Object.keys(careerObj).forEach(function(k) {
+          career[k] = String(careerObj[k]);
+        });
+      }
+    }
+  } catch(e) {
+    console.warn('[career cv3] failed for ' + playerId + ':', e.message);
+  }
+
+  // Strategy 2 (fallback): statisticslog → follow every $ref for full career
+  // This gives COMPLETE career totals across all seasons, no year cap.
+  if (!career) {
+    try {
+      var log = await limited(function() { return withTimeout(fetchWithFallback(
+        ESPN_CORE + '/athletes/' + playerId + '/statisticslog'
+      )); });
+
+      var entries = log.entries || log.items || [];
+      // $refs use http:// — convert to https:// so proxies can reach them
+      var refs = entries
+        .map(function(e) { return (e.$ref || '').replace('http://', 'https://'); })
+        .filter(function(ref) { return ref.indexOf('/types/2/') !== -1; });
+
+      if (refs.length > 0) {
+        var seasonResults = await Promise.allSettled(
+          refs.map(function(ref) {
+            return limited(function() { return withTimeout(fetchWithFallback(ref)); });
+          })
+        );
+        var totals = {};
+        seasonResults.forEach(function(r) {
+          if (r.status !== 'fulfilled' || !r.value || r.value.error) return;
+          var cats = (r.value.splits && r.value.splits.categories) || [];
+          aggregateInto(totals, parseStatCategories(cats));
+        });
+        career = computedAverages(totals);
+      }
+    } catch(e) {
+      console.warn('[career log] failed for ' + playerId + ':', e.message);
+    }
+  }
+
+  var result = { season: season, career: career };
+  statsCache[playerId] = result;
+  return result;
+}
+
+// ── Stat helpers ──────────────────────────────────────────
+function sv(stats, key, isSeason) {
+  if (!stats) return isSeason ? '0' : '—';
+  const v = stats[key];
+  if (v !== undefined && v !== null && v !== '') return v;
+  return isSeason ? '0' : '—';
+}
+
+function fracHTML(sVal, cVal) {
+  return '<span class="stat-frac"><span class="numer">' + sVal + '</span><span class="denom">' + cVal + '</span></span>';
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Roster fetch ──────────────────────────────────────────
+async function fetchRoster(teamId) {
+  if (rosterCache[teamId] !== undefined) return rosterCache[teamId];
+  try {
+    const d = await fetchWithFallback(ESPN + '/teams/' + teamId + '/roster');
+    const athletes = d.athletes || [];
+    let allPlayers = [];
+    if (Array.isArray(athletes) && athletes[0] && athletes[0].items) {
+      const offenseGroup = athletes.find(function(g) { return /offense/i.test(g.position); });
+      allPlayers = (offenseGroup && offenseGroup.items) || athletes.reduce(function(a,g) { return a.concat(g.items||[]); }, []);
+    } else {
+      allPlayers = athletes;
+    }
+    const grouped = {};
+    for (const p of allPlayers) {
+      const pos = p.position && p.position.abbreviation && p.position.abbreviation.toUpperCase();
+      const cfg = POS_CONFIG[pos];
+      if (!cfg) continue;
+      if (!grouped[cfg.group]) grouped[cfg.group] = [];
+      if (grouped[cfg.group].length < cfg.limit) grouped[cfg.group].push(p);
+    }
+    rosterCache[teamId] = grouped;
+    return grouped;
+  } catch(e) {
+    rosterCache[teamId] = {};
+    return {};
+  }
+}
+
+// ── Main load ─────────────────────────────────────────────
+const REFRESH_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>';
+
+async function loadGames() {
+  if (_loadingGames) return;          // prevent double-load / duplicate cards
+  _loadingGames = true;
+  const btn    = document.getElementById('refresh-btn');
+  const grid   = document.getElementById('games-grid');
+  const status = document.getElementById('status-bar');
+
+  btn.classList.add('loading');
+  btn.innerHTML = REFRESH_SVG + ' Loading\u2026';
+  status.className = 'status-bar';
+  status.textContent = 'Fetching schedule\u2026';
+
+  let skeletonHtml = '';
+  for (let s = 0; s < 4; s++) {
+    skeletonHtml += '<div class="skeleton-card"><div style="background:#c9c4bc;height:52px;padding:14px 16px;display:flex;align-items:center;gap:10px;"><div class="skeleton" style="width:180px;height:18px"></div><div class="skeleton" style="margin-left:auto;width:80px;height:18px"></div></div><div style="padding:14px 16px;display:flex;flex-direction:column;gap:9px">';
+    for (let r = 0; r < 10; r++) skeletonHtml += '<div class="skeleton" style="width:100%;height:13px;border-radius:3px"></div>';
+    skeletonHtml += '</div></div>';
+  }
+  grid.innerHTML = skeletonHtml;
+
+  try {
+    const url = (nflSeasonYear && nflWeek)
+      ? ESPN + '/scoreboard?dates=' + nflSeasonYear + '&seasontype=' + nflSeasonType + '&week=' + nflWeek
+      : ESPN + '/scoreboard';  // no params = ESPN returns current week
+    const d = await fetchWithFallback(url);
+    // Deduplicate by event ID (scoreboard sometimes returns same game twice)
+    const seenIds = new Set();
+    const events  = (d.events || []).filter(function(e) {
+      if (!e.id || seenIds.has(e.id)) return false;
+      seenIds.add(e.id); return true;
+    });
+
+    // Store season/week from scoreboard so nav and stats fetches stay in sync
+    if (d.season) {
+      nflSeasonYear = d.season.year || nflSeasonYear;
+      nflSeasonType = d.season.type || nflSeasonType;
+    }
+    if (d.week && d.week.number) nflWeek = d.week.number;
+    // Reset dropdown browse state so it opens at the loaded week
+    _dropYear = null; _dropType = null;
+    updateNavDisplay();
+
+    if (!events.length) {
+      grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><h3>No games today</h3><p>Try a different date using the arrows above.</p></div>';
+      status.textContent = 'No games for ' + navMainLabel();
+      btn.classList.remove('loading');
+      btn.innerHTML = REFRESH_SVG + ' Load Games';
+      return;
+    }
+
+    allGames = events;
+    populateTeamFilter(events);
+
+    // Fetch all rosters in parallel before building cards
+    const teamIds = [];
+    const seen = new Set();
+    for (const e of events) {
+      const comp = e.competitions && e.competitions[0];
+      if (!comp) continue;
+      for (const c of (comp.competitors || [])) {
+        if (c.team && c.team.id && !seen.has(c.team.id)) {
+          seen.add(c.team.id);
+          teamIds.push(c.team.id);
+        }
+      }
+    }
+    for (let i = 0; i < teamIds.length; i += 6)
+      await Promise.all(teamIds.slice(i, i+6).map(function(id) { return fetchRoster(id); }));
+
+    // Build cards one at a time — stats fetched inline per player (MLB pattern)
+    grid.innerHTML = '';
+    for (let i = 0; i < events.length; i++) {
+      status.textContent = 'Loading game ' + (i+1) + ' of ' + events.length + '\u2026';
+      let html = '';
+      try { html = await buildGameCard(events[i]); } catch(cardErr) { console.error('Card ' + (i+1) + ' failed:', cardErr.message); }
+      if (!html) continue;
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      const card = tmp.firstElementChild;
+      if (card) {
+        grid.appendChild(card);
+        filterGames();
+        attachTooltipListeners(card);
+      }
+    }
+
+    status.textContent = 'Loaded ' + events.length + ' game' + (events.length !== 1 ? 's' : '') + '  \u00b7  Updated ' + new Date().toLocaleTimeString();
+
+  } catch(e) {
+    console.error('loadGames error:', e);
+    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><h3>Could not load games</h3><p>' + e.message + '</p><p>Run a local server: <code>python3 -m http.server 8080</code></p></div>';
+    status.className = 'status-bar error';
+    status.textContent = 'Error: ' + e.message;
+  }
+  _loadingGames = false;
+  btn.classList.remove('loading');
+  btn.innerHTML = REFRESH_SVG + ' Load Games';
+}
+
+// ── Tooltip event delegation ──────────────────────────────
+// Attach once per card so we don't need inline handlers (avoids all escaping issues)
+function attachTooltipListeners(card) {
+  card.querySelectorAll('.player-name-link[data-pid]').forEach(function(link) {
+    link.addEventListener('mouseenter', function() {
+      showPlayerTooltip(link);
+    });
+    link.addEventListener('mouseleave', hidePlayerTooltip);
+  });
+  card.querySelectorAll('.stat-frac[data-pid]').forEach(function(frac) {
+    frac.addEventListener('mouseenter', function() {
+      const type = frac.dataset.tip;
+      if (type === 'pass')     showPassTooltip(frac);
+      else if (type === 'rush') showRushRecTooltip(frac, true);
+      else if (type === 'rec')  showRushRecTooltip(frac, false);
+    });
+    frac.addEventListener('mouseleave', function() {
+      document.getElementById('pass-tooltip').classList.remove('visible');
+      document.getElementById('rush-rec-tooltip').classList.remove('visible');
+    });
+  });
+}
+
+// ── Game card builder ─────────────────────────────────────
+async function buildGameCard(event) {
+  const comp = event.competitions && event.competitions[0];
+  if (!comp) return '';
+  const away = (comp.competitors || []).find(function(c) { return c.homeAway === 'away'; });
+  const home = (comp.competitors || []).find(function(c) { return c.homeAway === 'home'; });
+  if (!away || !home) return '';
+
+  const awayTeam = away.team, homeTeam = home.team;
+  const awayRecord = (away.records && away.records[0] && away.records[0].summary) || '';
+  const homeRecord = (home.records && home.records[0] && home.records[0].summary) || '';
+  const venue  = (comp.venue && comp.venue.fullName) || '';
+  const status = comp.status && comp.status.type;
+  let timeDisplay = '';
+  try { timeDisplay = new Date(event.date).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:'America/Los_Angeles'}); } catch(e) {}
+
+  let statusPillHtml = '';
+  if (status && status.state === 'in')  statusPillHtml = '<div class="game-status-pill live">' + (status.shortDetail||'Live') + '</div>';
+  else if (status && status.completed)  statusPillHtml = '<div class="game-status-pill final">Final</div>';
+
+  const awayColor = awayTeam.color ? '#' + awayTeam.color : 'rgba(255,255,255,0.3)';
+  const homeColor = homeTeam.color ? '#' + homeTeam.color : 'rgba(255,255,255,0.15)';
+  const logo = function(id) { return 'https://a.espncdn.com/i/teamlogos/nfl/500/' + id + '.png'; };
+
+  const awayRoster = rosterCache[awayTeam.id] || await fetchRoster(awayTeam.id);
+  const homeRoster = rosterCache[homeTeam.id] || await fetchRoster(homeTeam.id);
+  // Build both columns in parallel — all player stat fetches run concurrently
+  const colResults = await Promise.allSettled([buildRosterCol(awayRoster), buildRosterCol(homeRoster)]);
+  const awayColHtml = colResults[0].status === 'fulfilled' ? colResults[0].value : '<div class="tbd-roster">Could not load</div>';
+  const homeColHtml = colResults[1].status === 'fulfilled' ? colResults[1].value : '<div class="tbd-roster">Could not load</div>';
+
+  return '<div class="game-card" data-away="' + awayTeam.id + '" data-home="' + homeTeam.id + '" style="--away-accent:' + awayColor + ';--home-accent:' + homeColor + '">' +
+  '<div class="game-header">' +
+    '<div class="matchup">' +
+      '<span class="team-abbr-label"><img class="team-logo-header" src="' + logo(awayTeam.id) + '" onerror="this.style.display=\'none\'"> ' + awayTeam.abbreviation + (awayRecord ? ' <span class="team-record">(' + awayRecord + ')</span>' : '') + '</span>' +
+      '<span class="vs-sep">@</span>' +
+      '<span class="team-abbr-label"><img class="team-logo-header" src="' + logo(homeTeam.id) + '" onerror="this.style.display=\'none\'"> ' + homeTeam.abbreviation + (homeRecord ? ' <span class="team-record">(' + homeRecord + ')</span>' : '') + '</span>' +
+    '</div>' +
+    '<div class="game-meta"><div class="game-time">' + (status && status.state==='in' ? '' : timeDisplay) + '</div>' + statusPillHtml + (venue ? '<div class="game-venue">' + venue + '</div>' : '') + '</div>' +
+  '</div>' +
+  '<div class="rosters-row">' +
+    '<div class="roster-col"><div class="col-label"><img src="' + logo(awayTeam.id) + '" onerror="this.style.display=\'none\'"> ' + awayTeam.abbreviation + ' Offense</div>' + awayColHtml + '</div>' +
+    '<div class="roster-col"><div class="col-label"><img src="' + logo(homeTeam.id) + '" onerror="this.style.display=\'none\'"> ' + homeTeam.abbreviation + ' Offense</div>' + homeColHtml + '</div>' +
+  '</div>' +
+  '<div class="game-footer">' +
+    '<a href="https://www.espn.com/nfl/game/_/gameId/' + event.id + '" target="_blank">ESPN Gamecast</a>' +
+    '<a class="primary" href="https://www.nfl.com/scores/" target="_blank">NFL Scores</a>' +
+  '</div></div>';
+}
+
+// ── Roster column ─────────────────────────────────────────
+async function buildRosterCol(grouped) {
+  if (!grouped || !Object.keys(grouped).length)
+    return '<div class="tbd-roster">Roster not available</div>';
+
+  // Flatten all players from all position groups
+  const allPlayers = [];
+  for (const grp of Object.keys(grouped)) {
+    for (const p of (grouped[grp] || [])) allPlayers.push(p);
+  }
+  if (!allPlayers.length) return '<div class="tbd-roster">No skill players found</div>';
+
+  // Fetch season + career stats for EVERY player in parallel (MLB pattern)
+  const enriched = await Promise.all(allPlayers.map(async function(p) {
+    const pid = String(p.id);
+    const pos = (p.position && p.position.abbreviation && p.position.abbreviation.toUpperCase()) || 'WR';
+    const exp = (p.experience && p.experience.years) || 0;
+    let season = {}, career = null;
+    try {
+      const r = await fetchNFLPlayerStats(pid, exp);
+      season = r.season || {};
+      career = r.career || null;
+    } catch(e) {}
+    return { p, pid, pos, exp, season, career };
+  }));
+
+  // Helper: numeric stat value for sorting
+  function sn(stats, key) {
+    if (!stats) return 0;
+    return parseFloat(String(stats[key] || '0').replace(/,/g,'')) || 0;
+  }
+
+  // Positional rank within each section for tie-breaking (0 = highest priority)
+  const posRankPass = { QB:0, WR:1, RB:2, HB:2, FB:3, TE:4 };
+  const posRankRush = { RB:0, HB:0, FB:1, QB:2, WR:3, TE:4 };
+  const posRankRecv = { WR:0, TE:1, RB:2, HB:2, FB:3, QB:4 };
+
+  function buildSection(section, posRankMap) {
+    const sortStat = section.sortStat;
+    const defaultPos = section.defaultPos;
+
+    // Include: players from this section's default positions OR anyone with stats in this category
+    var candidates = enriched.filter(function(e) {
+      return defaultPos.includes(e.pos) || sn(e.season, sortStat) > 0;
+    });
+
+    // Sort: by season stat desc; tie-break by positional rank then jersey number
+    candidates.sort(function(a, b) {
+      var diff = sn(b.season, sortStat) - sn(a.season, sortStat);
+      if (diff !== 0) return diff;
+      var ra = posRankMap[a.pos] !== undefined ? posRankMap[a.pos] : 99;
+      var rb = posRankMap[b.pos] !== undefined ? posRankMap[b.pos] : 99;
+      if (ra !== rb) return ra - rb;
+      return parseInt(a.p.jersey||'99') - parseInt(b.p.jersey||'99');
+    });
+
+    candidates = candidates.slice(0, section.limit);
+    if (!candidates.length) return '';
+
+    var rows = candidates.map(function(e) {
+      var p      = e.p;
+      var pid    = e.pid;
+      var pos    = e.pos;
+      var cfg    = POS_CONFIG[pos] || { display: pos, pillClass: pos };
+      var jersey = p.jersey || '—';
+      var name   = p.displayName || p.fullName || 'Unknown';
+      var dob    = p.dateOfBirth || '';
+      var ht     = p.displayHeight || '';
+      var wt     = p.displayWeight || '';
+      var exp    = e.exp;
+      var s      = e.season;
+      var c      = e.career;
+
+      var statDefs = section.fracs(s, c);
+      var fracsHtml = statDefs.map(function(def) {
+        return '<span class="stat-frac" data-pid="' + pid + '" data-tip="' + def[2] + '">' +
+          '<span class="numer">' + sv(s, def[0], true) + '</span>' +
+          '<span class="denom">' + sv(c, def[0]) + '</span>' +
+          '</span>';
+      }).join('');
+
+      return '<div class="player-row" data-pid="' + pid + '" data-pos="' + pos + '">' +
+        '<span class="pos-pill ' + cfg.pillClass + '">' + cfg.display + '</span>' +
+        '<span class="jersey-num">#' + jersey + '</span>' +
+        '<a class="player-name-link" data-pid="' + pid + '" data-name="' + escHtml(name) +
+          '" data-dob="' + escHtml(dob) + '" data-ht="' + escHtml(ht) +
+          '" data-wt="' + escHtml(wt) + '" data-exp="' + exp +
+          '" href="https://www.espn.com/nfl/player/stats/_/id/' + pid +
+          '" target="_blank" rel="noopener">' + escHtml(name) + '</a>' +
+        '<span class="player-stats-inline">' + fracsHtml + '</span>' +
+        '</div>';
+    });
+
+    return '<div class="pos-group">' +
+      '<div class="pos-group-header">' +
+        '<span class="pos-group-name" style="color:' + section.color + '">' + section.label + '</span>' +
+        '<span class="pos-group-line"></span>' +
+      '</div>' +
+      rows.join('') +
+      '</div>';
+  }
+
+  var posRankMaps = [posRankPass, posRankRush, posRankRecv];
+  var html = STAT_SECTIONS.map(function(sec, i) {
+    return buildSection(sec, posRankMaps[i]);
+  }).join('');
+
+  return html || '<div class="tbd-roster">No players found</div>';
+}
+
+// ── Tooltips (MLB-style, three types) ─────────────────────
+function positionTooltip(tip, el) {
+  tip.style.top = '-9999px'; tip.style.left = '-9999px';
+  tip.classList.add('visible');
+  const rect    = el.getBoundingClientRect();
+  const tipRect = tip.getBoundingClientRect();
+  tip.style.left = Math.max(4, rect.left + rect.width/2 - tipRect.width/2) + 'px';
+  tip.style.top  = (rect.top - tipRect.height - 4) + 'px';
+}
+
+function showPlayerTooltip(el) {
+  const tip = document.getElementById('player-tooltip');
+  const pid = el.dataset.pid;
+  const dob = el.dataset.dob || '';
+  const ht  = el.dataset.ht  || '';
+  const wt  = el.dataset.wt  || '';
+  const exp = el.dataset.exp || '0';
+  const stats = statsCache[pid] || {};
+  const s = stats.season || {}, c = stats.career || {};
+  const dobStr = dob ? formatDOB(dob) : '\u2014';
+  const gp  = sv(s,'gamesPlayed',true);
+  const cgp = sv(c,'gamesPlayed');
+  tip.innerHTML =
+    '<span class="tooltip-dob">' + dobStr + '</span>' +
+    '<span class="tooltip-frac"><span class="tn">' + ht + '</span><span class="td">' + wt + '</span></span>' +
+    '<span class="tooltip-sep">|</span>' +
+    '<span class="tooltip-frac"><span class="tn">' + gp + '</span><span class="td">' + cgp + '</span></span>' +
+    '<span style="opacity:0.6;font-size:10px">GP</span>' +
+    '<span style="opacity:0.5;font-size:10px">Yr ' + (Number(exp)+1) + '</span>';
+  positionTooltip(tip, el);
+}
+function hidePlayerTooltip() { document.getElementById('player-tooltip').classList.remove('visible'); }
+
+function showPassTooltip(el) {
+  const tip = document.getElementById('pass-tooltip');
+  const pid = el.dataset.pid;
+  const stats = statsCache[pid] || {};
+  const s = stats.season || {}, c = stats.career || {};
+  tip.innerHTML =
+    '<span class="tooltip-frac"><span class="tn">' + sv(s,'completionPct',true) + '%</span><span class="td">' + sv(c,'completionPct') + '%</span></span>' +
+    '<span class="tooltip-sep">/</span>' +
+    '<span class="tooltip-frac"><span class="tn">' + sv(s,'yardsPerPassAttempt',true) + '</span><span class="td">' + sv(c,'yardsPerPassAttempt') + '</span></span>' +
+    '<span class="tooltip-sep">/</span>' +
+    '<span class="tooltip-frac"><span class="tn">' + sv(s,'interceptions',true) + '</span><span class="td">' + sv(c,'interceptions') + '</span></span>' +
+    '<span style="opacity:0.6;font-size:10px">Cmp% / YPA / INT</span>';
+  positionTooltip(tip, el);
+}
+
+function showRushRecTooltip(el, isRush) {
+  const tip = document.getElementById('rush-rec-tooltip');
+  const pid = el.dataset.pid;
+  const stats = statsCache[pid] || {};
+  const s = stats.season || {}, c = stats.career || {};
+  if (isRush) {
+    tip.innerHTML =
+      '<span class="tooltip-frac"><span class="tn">' + sv(s,'yardsPerRushAttempt',true) + '</span><span class="td">' + sv(c,'yardsPerRushAttempt') + '</span></span>' +
+      '<span class="tooltip-sep">/</span>' +
+      '<span class="tooltip-frac"><span class="tn">' + sv(s,'rushingAttempts',true) + '</span><span class="td">' + sv(c,'rushingAttempts') + '</span></span>' +
+      '<span style="opacity:0.6;font-size:10px">YPC / Att</span>';
+  } else {
+    tip.innerHTML =
+      '<span class="tooltip-frac"><span class="tn">' + sv(s,'yardsPerReception',true) + '</span><span class="td">' + sv(c,'yardsPerReception') + '</span></span>' +
+      '<span class="tooltip-sep">/</span>' +
+      '<span class="tooltip-frac"><span class="tn">' + sv(s,'receptions',true) + '</span><span class="td">' + sv(c,'receptions') + '</span></span>' +
+      '<span style="opacity:0.6;font-size:10px">YPR / Rec</span>';
+  }
+  positionTooltip(tip, el);
+}
+
+// ── Team filter ───────────────────────────────────────────
+function populateTeamFilter(events) {
+  const drop = document.getElementById('team-filter-dropdown');
+  const teams = new Map();
+  for (const e of events) {
+    const comp = e.competitions && e.competitions[0];
+    if (!comp) continue;
+    for (const c of (comp.competitors || [])) {
+      if (c.team && c.team.id) teams.set(String(c.team.id), c.team.abbreviation || '');
+    }
+  }
+  const sorted = Array.from(teams.entries()).sort(function(a,b) { return a[1].localeCompare(b[1]); });
+  drop.innerHTML = '<label class="multi-select-option all-option"><input type="checkbox" id="filter-all" checked onchange="toggleAllTeams(this)"> All Teams</label>' +
+    sorted.map(function(e) { return '<label class="multi-select-option"><input type="checkbox" class="team-cb" value="' + e[0] + '" checked onchange="filterGames()"> ' + e[1] + '</label>'; }).join('');
+}
+
+function toggleTeamDropdown(e) {
+  e.stopPropagation();
+  document.getElementById('team-filter-dropdown').classList.toggle('open');
+}
+function toggleAllTeams(cb) {
+  document.querySelectorAll('.team-cb').forEach(function(c) { c.checked = cb.checked; });
+  filterGames();
+}
+document.addEventListener('click', function(e) {
+  const wrap = document.getElementById('team-filter-wrap');
+  if (wrap && !wrap.contains(e.target)) {
+    const drop = document.getElementById('team-filter-dropdown');
+    if (drop) drop.classList.remove('open');
+  }
+});
+
+function filterGames() {
+  const checked = Array.from(document.querySelectorAll('.team-cb:checked')).map(function(c) { return c.value; });
+  const total   = document.querySelectorAll('.team-cb').length;
+  const allCb   = document.getElementById('filter-all');
+  if (allCb) allCb.checked = checked.length === total;
+  const btn = document.getElementById('team-filter-btn');
+  if (btn) {
+    let label;
+    if (checked.length === 0) label = 'No Teams';
+    else if (checked.length === total) label = 'All Teams';
+    else if (checked.length === 1) { const el = document.querySelector('.team-cb[value="' + checked[0] + '"]'); label = (el && el.closest('label') && el.closest('label').textContent.trim()) || '1 Team'; }
+    else label = checked.length + ' Teams';
+    btn.innerHTML = label + ' <span class="multi-select-arrow">\u25be</span>';
+  }
+  const posFilter = (document.getElementById('pos-filter') && document.getElementById('pos-filter').value) || 'ALL';
+  document.querySelectorAll('.game-card[data-away][data-home]').forEach(function(card) {
+    card.style.display = (checked.includes(card.dataset.away) || checked.includes(card.dataset.home)) ? '' : 'none';
+  });
+  document.querySelectorAll('.pos-group').forEach(function(grp) {
+    if (posFilter === 'ALL') { grp.style.display = ''; return; }
+    const rows = grp.querySelectorAll('.player-row');
+    let any = false;
+    rows.forEach(function(r) {
+      const p = r.dataset.pos;
+      const show = (posFilter==='QB'&&p==='QB') || (posFilter==='RB'&&['RB','HB','FB'].includes(p)) || (posFilter==='WR'&&p==='WR') || (posFilter==='TE'&&p==='TE');
+      r.style.display = show ? '' : 'none';
+      if (show) any = true;
+    });
+    grp.style.display = any ? '' : 'none';
+  });
+}
+
+// ── Utilities ─────────────────────────────────────────────
+function formatDOB(dateStr) {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    const age = Math.floor((Date.now()-d)/(365.25*24*3600*1000));
+    return d.toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'numeric'}) + ' (' + age + ')';
+  } catch(e) { return dateStr; }
+}
+
+
+function closeCalendar() { document.getElementById('calendar-dropdown').classList.remove('open'); }
+document.addEventListener('click', function(e) {
+  const cal = document.getElementById('calendar-dropdown');
+  if (cal && cal.classList.contains('open') && !cal.contains(e.target)) closeCalendar();
+});
+function calShiftMonth(delta, e) {
+  e.stopPropagation();
+  calViewDate = new Date(calViewDate.getFullYear(), calViewDate.getMonth() + delta, 1);
+  renderCalendar();
+}
+function selectCalDay(year, month, day, e) {
+  e.stopPropagation();
+  
+  rosterCache = {}; statsCache = {};
+  updateDateDisplay();
+  closeCalendar();
+  loadGames();
+}
+function renderCalendar() {
+  const cal = document.getElementById('calendar-dropdown');
+  const year = calViewDate.getFullYear(), month = calViewDate.getMonth();
+  const monthLabel = calViewDate.toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const dows = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+  let dayHtml = dows.map(function(d) { return '<div class="cal-dow">' + d + '</div>'; }).join('');
+  for (let i = 0; i < firstDay; i++) dayHtml += '<div class="cal-day empty"></div>';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds = String(year) + String(month+1).padStart(2,'0') + String(d).padStart(2,'0');
+    let cls = 'cal-day';
+    if (ds === todayStr) cls += ' today';
+    if (ds === selectedStr) cls += ' selected';
+    dayHtml += '<div class="' + cls + '" onclick="selectCalDay(' + year + ',' + month + ',' + d + ',event)">' + d + '</div>';
+  }
+  cal.innerHTML =
+    '<div class="cal-header"><button class="cal-nav-btn" onclick="calShiftMonth(-1,event)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button><div class="cal-month-label">' + monthLabel + '</div><button class="cal-nav-btn" onclick="calShiftMonth(1,event)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button></div>' +
+    '<div class="cal-grid">' + dayHtml + '</div>';
+}
+
+// ── Diagnostics ───────────────────────────────────────────
+async function runDiagnostics() {
+  const panel = document.getElementById('diag-panel');
+  const body  = document.getElementById('diag-body');
+  panel.classList.add('open');
+  body.innerHTML = 'Running diagnostics\u2026\n\n';
+  const log = function(msg, cls) { body.innerHTML += cls ? '<span class="' + cls + '">' + msg + '</span>\n' : msg + '\n'; };
+  const TEST_ID = '3139477';
+  const yr = nflSeasonYear || new Date().getFullYear();
+  log('Patrick Mahomes (ID: ' + TEST_ID + ') | season=' + nflSeasonYear + ' type=' + nflSeasonType + ' week=' + nflWeek + '\n');
+  var TEST_ID2 = '4374302'; // player from user's example URL
+  const endpoints = [
+    ['Common v3 /stats (Mahomes)',   'https://site.api.espn.com/apis/common/v3/sports/football/nfl/athletes/' + TEST_ID + '/stats'],
+    ['Common v3 /stats (example)',   'https://site.api.espn.com/apis/common/v3/sports/football/nfl/athletes/' + TEST_ID2 + '/stats'],
+    ['Core API prev year',           ESPN_CORE + '/seasons/' + (yr-1) + '/types/2/athletes/' + TEST_ID + '/statistics/0'],
+    ['StatisticsLog',                ESPN_CORE + '/athletes/' + TEST_ID + '/statisticslog'],
+  ];
+  for (const ep of endpoints) {
+    const label = ep[0], url = ep[1];
+    log('\n\u2500\u2500 ' + label + ' \u2500\u2500');
+    log('   ' + url, 'diag-key');
+    try {
+      const d = await fetchWithFallback(url);
+      if (isProxyError(d)) { log('   \u2717 PROXY ERROR: ' + (d.message||d.error), 'diag-err'); continue; }
+      const keys = Object.keys(d || {});
+      log('   \u2713 Keys: [' + keys.join(', ') + ']', 'diag-ok');
+
+      // Common v3 /stats — show categories structure in detail
+      if (d.categories && d.categories.length) {
+        log('   categories (' + d.categories.length + '):');
+        d.categories.forEach(function(cat) {
+          log('     cat: ' + (cat.name||cat.displayName||'?'));
+          if (cat.names) log('       names: [' + (cat.names||[]).slice(0,6).join(', ') + ']');
+          if (cat.totals) log('       totals (career): [' + (cat.totals||[]).slice(0,6).join(', ') + ']');
+          if (cat.seasonTotals) log('       seasonTotals: [' + (cat.seasonTotals||[]).slice(0,6).join(', ') + ']');
+          if (cat.stats) log('       stats[0]: ' + (cat.stats[0]&&cat.stats[0].name) + '=' + (cat.stats[0]&&cat.stats[0].displayValue));
+          if (cat.careerStats) log('       careerStats[0]: ' + (cat.careerStats[0]&&cat.careerStats[0].name) + '=' + (cat.careerStats[0]&&cat.careerStats[0].displayValue));
+        });
+      }
+      // Core API splits
+      if (d.splits && d.splits.categories) {
+        const cats = d.splits.categories;
+        log('   splits.categories: [' + cats.map(function(c){return c.name;}).join(', ') + ']');
+        const samples = cats.reduce(function(a,c){return a.concat(c.stats||[]);}, []).slice(0,5);
+        log('   sample: ' + samples.map(function(s){return s.name+'='+s.displayValue;}).join(', '));
+      }
+      // Statisticslog
+      if (d.entries || d.items) {
+        var entries = d.entries || d.items;
+        var regEntries = entries.filter(function(e){return (e.$ref||'').indexOf('/types/2/')!==-1;});
+        log('   entries: ' + entries.length + ' total, ' + regEntries.length + ' regular season', 'diag-ok');
+        if (regEntries[0]) log('   first ref: ' + regEntries[0].$ref);
+      }
+      if (d.events) log('   events: ' + d.events.length, 'diag-ok');
+    } catch(e) { log('   \u2717 FAILED: ' + e.message, 'diag-err'); }
+  }
+  log('\nProxy index: ' + workingProxy + '\nDone.');
+}
+</script>
+</body>
+</html>
