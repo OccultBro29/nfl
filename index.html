@@ -1177,6 +1177,13 @@ function showPassTooltip(el) {
   positionTooltip(tip, el);
 }
 
+function perGame(stats, key, isSeason) {
+  var num = function(k) { return parseFloat(String((stats && stats[k]) || '0').replace(/,/g,'')) || 0; };
+  var gp = num('gamesPlayed');
+  if (!stats || gp <= 0) return isSeason ? '0.0' : '\u2014';
+  return (num(key) / gp).toFixed(1);
+}
+
 function showRushRecTooltip(el, isRush) {
   const tip = document.getElementById('rush-rec-tooltip');
   const pid = el.dataset.pid;
@@ -1187,13 +1194,17 @@ function showRushRecTooltip(el, isRush) {
       '<span class="tooltip-frac"><span class="tn">' + sv(s,'yardsPerRushAttempt',true) + '</span><span class="td">' + sv(c,'yardsPerRushAttempt') + '</span></span>' +
       '<span class="tooltip-sep">/</span>' +
       '<span class="tooltip-frac"><span class="tn">' + sv(s,'rushingAttempts',true) + '</span><span class="td">' + sv(c,'rushingAttempts') + '</span></span>' +
-      '<span style="opacity:0.6;font-size:10px">YPC / Att</span>';
+      '<span class="tooltip-sep">/</span>' +
+      '<span class="tooltip-frac"><span class="tn">' + perGame(s,'rushingAttempts',true) + '</span><span class="td">' + perGame(c,'rushingAttempts') + '</span></span>' +
+      '<span style="opacity:0.6;font-size:10px">YPC / Att / Att/G</span>';
   } else {
     tip.innerHTML =
       '<span class="tooltip-frac"><span class="tn">' + sv(s,'yardsPerReception',true) + '</span><span class="td">' + sv(c,'yardsPerReception') + '</span></span>' +
       '<span class="tooltip-sep">/</span>' +
       '<span class="tooltip-frac"><span class="tn">' + sv(s,'receptions',true) + '</span><span class="td">' + sv(c,'receptions') + '</span></span>' +
-      '<span style="opacity:0.6;font-size:10px">YPR / Rec</span>';
+      '<span class="tooltip-sep">/</span>' +
+      '<span class="tooltip-frac"><span class="tn">' + perGame(s,'receptions',true) + '</span><span class="td">' + perGame(c,'receptions') + '</span></span>' +
+      '<span style="opacity:0.6;font-size:10px">YPR / Rec / Rec/G</span>';
   }
   positionTooltip(tip, el);
 }
