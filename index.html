@@ -375,7 +375,7 @@ const STAT_SECTIONS = [
     defaultPos: ['RB','HB','FB','QB','WR','TE'],
     fracs: function(s,c) { return [
       ['rushingYards',       'RushYds', 'rush'],
-      ['rushingTouchdowns',  'TD',      'rush'],
+      ['rushingTouchdowns',  'TD',      'rushtd'],
       ['rushingAttempts',    'Att',     'rush'],
     ]; }
   },
@@ -385,7 +385,7 @@ const STAT_SECTIONS = [
     defaultPos: ['WR','TE','RB','HB','FB','QB'],
     fracs: function(s,c) { return [
       ['receivingYards',       'RecYds', 'rec'],
-      ['receivingTouchdowns',  'TD',     'rec'],
+      ['receivingTouchdowns',  'TD',     'rectd'],
       ['receivingTargets',     'Tgt',    'rec'],
     ]; }
   },
@@ -961,6 +961,8 @@ function attachTooltipListeners(card) {
       if (type === 'pass')     showPassTooltip(frac);
       else if (type === 'rush') showRushRecTooltip(frac, true);
       else if (type === 'rec')  showRushRecTooltip(frac, false);
+      else if (type === 'rushtd') showTDPerGameTooltip(frac, 'rushingTouchdowns');
+      else if (type === 'rectd')  showTDPerGameTooltip(frac, 'receivingTouchdowns');
     });
     frac.addEventListener('mouseleave', function() {
       document.getElementById('pass-tooltip').classList.remove('visible');
@@ -1174,6 +1176,16 @@ function showPassTooltip(el) {
     '<span class="tooltip-sep">/</span>' +
     '<span class="tooltip-frac"><span class="tn">' + sv(s,'interceptions',true) + '</span><span class="td">' + sv(c,'interceptions') + '</span></span>' +
     '<span style="opacity:0.6;font-size:10px">Cmp% / YPA / INT</span>';
+  positionTooltip(tip, el);
+}
+
+function showTDPerGameTooltip(el, key) {
+  const tip = document.getElementById('rush-rec-tooltip');
+  const stats = statsCache[el.dataset.pid] || {};
+  const s = stats.season || {}, c = stats.career || {};
+  tip.innerHTML =
+    '<span class="tooltip-frac"><span class="tn">' + perGame(s, key, true) + '</span><span class="td">' + perGame(c, key) + '</span></span>' +
+    '<span style="opacity:0.6;font-size:10px">TD/G</span>';
   positionTooltip(tip, el);
 }
 
